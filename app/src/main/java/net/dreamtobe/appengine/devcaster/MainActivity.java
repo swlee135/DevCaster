@@ -8,14 +8,19 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.View;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.FrameLayout;
 
-public class MainActivity extends AppCompatActivity {
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity implements CameraPreview.OnFrameCaptureListener {
     private Camera mCamera;
     private CameraPreview mPreview;
+
+    private static String TAG = "[DevCaster]MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
         mCamera = getCameraInstance();
 
         mPreview = new CameraPreview(this, mCamera);
+
+        mPreview.setOnFrameCaptureListener(this);
 
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
@@ -78,6 +85,18 @@ public class MainActivity extends AppCompatActivity {
         catch (Exception e) {
             // Camera is not available (in use or does not exist
         }
+
+        Camera.Parameters param = c.getParameters();
+        List<int[]> fpslist = param.getSupportedPreviewFpsRange();
+        Log.d("camera", "size= " + fpslist.size());
+        for (int[] rates : fpslist) {
+            //Log.d(TAG, i + " fps= " + fpslist.get(i)[Camera.Parameters.PREVIEW_FPS_MIN_INDEX]);
+            //Log.d(TAG, i + " fps= " + fpslist.get(i)[Camera.Parameters.PREVIEW_FPS_MAX_INDEX]);
+            Log.d(TAG, String.format("fps = %d ~ %d" , rates[0], rates[1]));
+        }
+
+        param.setPreviewFpsRange(fpslist.get(0)[0] , fpslist.get(0)[1]);
+
         return c; // return null if camera is unavailable
     }
 
@@ -98,5 +117,16 @@ public class MainActivity extends AppCompatActivity {
             mCamera.release();
             mCamera = null;
         }
+    }
+
+    @Override
+    public void OnFrameCapture(byte[] buffer, long pts) {
+        Camera.Parameters params = mCamera.getParameters();
+        int w = params.getPreviewSize().width;
+        int h = params.getPreviewSize().height;
+        int format = params.getPreviewFormat();
+
+        Log.d(TAG, String.format("time(%d) width(%d) , height(%d), format (%d)",
+                pts, w, h, format));
     }
 }

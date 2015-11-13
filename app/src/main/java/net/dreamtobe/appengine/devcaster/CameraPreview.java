@@ -16,7 +16,15 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     private boolean mbCapture;
     private SurfaceHolder mHolder;
 
-    private String TAG = "[FirstAndroidProject]CameraPreview";
+    private String TAG = "[DevCaster]CameraPreview";
+
+    private OnFrameCaptureListener m_iFrameCaptureListener;
+
+    private long mnStartTS, mnPrevTS;
+
+    static public interface OnFrameCaptureListener {
+        void OnFrameCapture(byte[] buffer, long pts);
+    }
 
     public CameraPreview(Context context, Camera camera) {
         super(context);
@@ -27,6 +35,9 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         // underlying surface is created and destroyed.
         mHolder = getHolder();
         mHolder.addCallback(this);
+
+        mnStartTS = 0;
+        mnPrevTS = 0;
     }
 
     @Override
@@ -118,16 +129,42 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     public void surfaceDestroyed(SurfaceHolder holder) {
         if (mCamera != null)
             mCamera.release();
+            mCamera = null;
     }
 
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
+        if (mCamera == null) {
+            return;
+        }
         Camera.Parameters params = camera.getParameters();
         int w = params.getPreviewSize().width;
         int h = params.getPreviewSize().height;
         int format = params.getPreviewFormat();
 
-        Log.d(TAG, String.format("time(%d) width(%d) , height(%d), format (%d)",
-                System.currentTimeMillis(), w, h , format));
+        long curTS = 0;
+
+        if (mnStartTS == 0) {
+            mnStartTS = System.currentTimeMillis();
+            curTS = mnStartTS;
+            mnPrevTS = mnStartTS;
+        }
+        else {
+            curTS = System.currentTimeMillis();
+        }
+
+        long pts = curTS - mnStartTS;
+
+        Log.d(TAG, String.format("pts(%d) ts_delta(%d) width(%d) , height(%d), format (%d)",
+                pts, curTS - mnPrevTS, w, h , format));
+
+        mnPrevTS = curTS;
+
+        m_iFrameCaptureListener.OnFrameCapture(data, pts);
+    }
+
+    public void setOnFrameCaptureListener(OnFrameCaptureListener listener)
+    {
+        m_iFrameCaptureListener = listener;
     }
 }
